@@ -30,10 +30,20 @@ export interface OptActions {
   deleteChoice(id: string): void;
   undoDelete(): void;
   setDailyNote(note: string): void;
-  updateSettings(settings: Partial<Settings>): void;
+  updateSettings(settings: SettingsUpdate): void;
   markHistoryHintSeen(): void;
   resetCorruptData(): void;
 }
+
+export type SettingsUpdate = Partial<
+  Pick<
+    Settings,
+    | 'reviewTime'
+    | 'reminderEnabled'
+    | 'notificationPreference'
+    | 'historyHintSeen'
+  >
+>;
 
 export interface OptContextValue extends OptActions {
   data: OptData;
@@ -239,16 +249,13 @@ export function OptProvider({
   );
 
   const updateSettings = useCallback(
-    (settings: Partial<Settings>) => {
+    (settings: SettingsUpdate) => {
       mutate((current) => ({
         ...current,
         settings: {
           ...current.settings,
           ...settings,
-          latestSeenDate: resolveEditableDate(
-            current.settings.latestSeenDate,
-            settings.latestSeenDate ?? current.settings.latestSeenDate,
-          ),
+          latestSeenDate: current.settings.latestSeenDate,
         },
       }));
     },

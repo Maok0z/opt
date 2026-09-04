@@ -215,6 +215,29 @@ describe('OptProvider', () => {
     );
   });
 
+  it('does not let public settings updates roll the editable date backward', async () => {
+    const storage = new MapStorage();
+    render(
+      <OptProvider
+        storage={storage}
+        now={() => new Date(2026, 8, 5, 8)}
+      >
+        <SettingsBoundaryProbe />
+      </OptProvider>,
+    );
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'attempt-date-rollback' }),
+    );
+
+    expect(screen.getByTestId('boundary-editable-date')).toHaveTextContent(
+      '2026-09-05',
+    );
+    expect(
+      JSON.parse(storage.getItem('opt:data') ?? '').settings.latestSeenDate,
+    ).toBe('2026-09-05');
+  });
+
   it('starts with defaults and a save error when the localStorage getter throws', () => {
     vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
       throw new Error('storage access denied');
@@ -360,6 +383,27 @@ function CollisionProbe() {
       </button>
       <button onClick={() => firstId && opt.deleteChoice(firstId)}>
         delete-collision
+      </button>
+    </>
+  );
+}
+
+function SettingsBoundaryProbe() {
+  const opt = useOpt();
+
+  return (
+    <>
+      <div data-testid="boundary-editable-date">{opt.editableDate}</div>
+      <button
+        onClick={() =>
+          opt.updateSettings(
+            { latestSeenDate: '2026-09-01' } as Parameters<
+              typeof opt.updateSettings
+            >[0],
+          )
+        }
+      >
+        attempt-date-rollback
       </button>
     </>
   );
