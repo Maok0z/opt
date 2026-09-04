@@ -300,6 +300,33 @@ describe('TodayPage', () => {
     expect(onOpenSettings).toHaveBeenCalledOnce();
   });
 
+  it('shows the history gesture hint once and opens history after pull-and-hold', () => {
+    vi.useFakeTimers();
+    const onOpenHistory = vi.fn();
+    const storage = renderToday({ onOpenHistory });
+    const page = screen.getByTestId('history-pull-zone');
+
+    expect(screen.getByText('下拉并停留，查看过往')).toBeInTheDocument();
+    fireEvent(page, pointerEventWithId('pointerdown', 1, 0, 0));
+    fireEvent(page, pointerEventWithId('pointermove', 1, 0, 70));
+    act(() => vi.advanceTimersByTime(500));
+
+    expect(onOpenHistory).toHaveBeenCalledOnce();
+    expect(readSavedData(storage).settings.historyHintSeen).toBe(true);
+  });
+
+  it('keeps an always-available history text fallback after the hint is dismissed', async () => {
+    const data = dataWithStatuses([]);
+    data.settings.historyHintSeen = true;
+    const onOpenHistory = vi.fn();
+    renderToday({ data, onOpenHistory });
+
+    expect(screen.queryByText('下拉并停留，查看过往')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '过往' }));
+
+    expect(onOpenHistory).toHaveBeenCalledOnce();
+  });
+
   it('keeps an in-memory choice visible and reports save failure', async () => {
     renderToday({ storage: new WriteFailingStorage() });
 
@@ -411,5 +438,16 @@ function dataWithChoices(
 function pointerEvent(type: string, clientX: number, clientY: number): Event {
   const event = new MouseEvent(type, { bubbles: true, clientX, clientY });
   Object.defineProperty(event, 'pointerId', { value: 1 });
+  return event;
+}
+
+function pointerEventWithId(
+  type: string,
+  pointerId: number,
+  clientX: number,
+  clientY: number,
+): Event {
+  const event = new MouseEvent(type, { bubbles: true, clientX, clientY });
+  Object.defineProperty(event, 'pointerId', { value: pointerId });
   return event;
 }

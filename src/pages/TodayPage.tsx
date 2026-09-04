@@ -4,6 +4,7 @@ import { DailyNote } from '../components/DailyNote';
 import { RatioBar } from '../components/RatioBar';
 import { Timeline } from '../components/Timeline';
 import { useOpt } from '../state/OptContext';
+import { usePullHold } from '../gestures/usePullHold';
 
 interface TodayPageProps {
   onOpenReview(): void;
@@ -17,6 +18,16 @@ export function TodayPage({
   onOpenSettings,
 }: TodayPageProps) {
   const opt = useOpt();
+  const openHistory = () => {
+    opt.markHistoryHintSeen();
+    onOpenHistory();
+  };
+  const historyPull = usePullHold({
+    distance: 64,
+    holdMs: 500,
+    enabled: opt.corruptData === null,
+    onComplete: openHistory,
+  });
 
   if (opt.corruptData !== null) {
     return (
@@ -44,15 +55,30 @@ export function TodayPage({
           设置
         </button>
       </header>
-      <h1>今天</h1>
-      <time dateTime={opt.editableDate}>{formatDate(opt.editableDate)}</time>
+      <div
+        data-testid="history-pull-zone"
+        style={{ touchAction: 'pan-x' }}
+        {...historyPull.bind}
+      >
+        <div
+          aria-hidden="true"
+          data-testid="history-pull-progress"
+          data-holding={historyPull.holding}
+          style={{ '--pull-progress': historyPull.progress } as React.CSSProperties}
+        />
+        {!opt.data.settings.historyHintSeen ? (
+          <p>下拉并停留，查看过往</p>
+        ) : null}
+        <h1>今天</h1>
+        <time dateTime={opt.editableDate}>{formatDate(opt.editableDate)}</time>
+      </div>
       {opt.saveError ? <p role="status">未能保存到此浏览器</p> : null}
       <ChoiceComposer onAdd={opt.addChoice} />
       <nav aria-label="页面入口">
         <button type="button" onClick={onOpenReview}>
           开始回顾
         </button>
-        <button type="button" onClick={onOpenHistory}>
+        <button type="button" onClick={openHistory}>
           过往
         </button>
       </nav>
