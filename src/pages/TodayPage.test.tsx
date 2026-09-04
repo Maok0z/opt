@@ -108,6 +108,7 @@ describe('TodayPage', () => {
     vi.useFakeTimers();
     renderToday({ data: dataWithStatuses(['unjudged']) });
     const row = screen.getByRole('article');
+    expect(row).toHaveClass('choice-row--horizontal-decision');
 
     fireEvent(row, pointerEvent('pointerdown', 20, 20));
     act(() => vi.advanceTimersByTime(600));
@@ -166,6 +167,32 @@ describe('TodayPage', () => {
     vi.useRealTimers();
     await userEvent.click(status);
     expect(screen.getByRole('button', { name: '状态：未判断' })).toBeInTheDocument();
+  });
+
+  it('judges a row from horizontal drag and focused keyboard arrows only', () => {
+    renderToday({ data: dataWithStatuses(['unjudged']) });
+    const row = screen.getByRole('article');
+
+    fireEvent(row, pointerEvent('pointerdown', 100, 100));
+    fireEvent(row, pointerEvent('pointermove', 180, 100));
+    fireEvent(row, pointerEvent('pointerup', 180, 100));
+    expect(
+      screen.getByRole('button', { name: '状态：绿色' }),
+    ).toBeInTheDocument();
+
+    row.focus();
+    fireEvent.keyDown(row, { key: 'ArrowLeft' });
+    expect(
+      screen.getByRole('button', { name: '状态：红色' }),
+    ).toBeInTheDocument();
+
+    fireEvent.keyDown(
+      screen.getByRole('button', { name: '状态：红色' }),
+      { key: 'ArrowRight' },
+    );
+    expect(
+      screen.getByRole('button', { name: '状态：红色' }),
+    ).toBeInTheDocument();
   });
 
   it('restores row focus after keyboard editing and closes an empty edit on blur', async () => {

@@ -2,11 +2,14 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
 } from 'react';
 import type { Choice } from '../domain/types';
 import { useOpt } from '../state/OptContext';
+import { useHorizontalDecision } from '../gestures/useHorizontalDecision';
+import '../gestures/interaction.css';
 
 interface ChoiceRowProps {
   choice: Choice;
@@ -36,6 +39,12 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
   const restoreRowFocus = useRef(false);
   const holdTimer = useRef<number | null>(null);
   const holdStart = useRef<HoldStart | null>(null);
+  const decision = useHorizontalDecision({
+    threshold: 72,
+    onDecision(direction) {
+      judgeChoice(choice.id, direction === 'right' ? 'green' : 'red');
+    },
+  });
 
   const clearHold = () => {
     if (holdTimer.current !== null) {
@@ -77,6 +86,7 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
     if (readOnly) return;
     const target = event.target as HTMLElement;
     if (target.closest('button, input, textarea, [role="menuitem"]')) return;
+    decision.bind.onPointerDown(event);
     clearHold();
     holdStart.current = {
       pointerId: event.pointerId,
@@ -91,6 +101,7 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
+    if (!readOnly) decision.bind.onPointerMove(event);
     const start = holdStart.current;
     if (!start || event.pointerId !== start.pointerId) return;
     if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8) {
@@ -98,10 +109,26 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
     }
   };
 
+  const handlePointerUp = (event: PointerEvent<HTMLElement>) => {
+    clearHold();
+    if (!readOnly) decision.bind.onPointerUp(event);
+  };
+
+  const handlePointerCancel = (event: PointerEvent<HTMLElement>) => {
+    clearHold();
+    if (!readOnly) decision.bind.onPointerCancel(event);
+  };
+
   const handleContextKey = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
       event.preventDefault();
       openMenu();
+      return;
+    }
+    if (event.target !== event.currentTarget || readOnly) return;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      judgeChoice(choice.id, event.key === 'ArrowRight' ? 'green' : 'red');
     }
   };
 
@@ -146,8 +173,13 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
   return (
     <article
       ref={rowRef}
+      className="choice-row--horizontal-decision"
       tabIndex={readOnly ? undefined : 0}
       data-decision={choice.status}
+      data-drag-direction={decision.direction}
+      style={{
+        '--decision-progress': decision.progress,
+      } as CSSProperties}
       onContextMenu={(event) => {
         if (readOnly) return;
         event.preventDefault();
@@ -157,8 +189,8 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerLeave={clearHold}
-      onPointerUp={clearHold}
-      onPointerCancel={clearHold}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       onBlur={(event) => {
         if (menuOpen && !event.currentTarget.contains(event.relatedTarget)) {
           setMenuOpen(false);
