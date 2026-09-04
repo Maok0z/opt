@@ -38,6 +38,11 @@ describe('ReviewPage', () => {
       'data-decision',
       'green',
     );
+    expect(
+      screen
+        .getByTestId('review-screen')
+        .style.getPropertyValue('--review-foreground'),
+    ).toBe('#000000');
     expect(screen.getByRole('status')).toHaveTextContent('已判断：绿色');
     expect(screen.getByRole('heading', { name: '第一条' })).toBeInTheDocument();
 
@@ -83,6 +88,16 @@ describe('ReviewPage', () => {
     fireEvent(screenElement, pointerEvent('pointerup', 3, 100, 140));
     expect(onExit).toHaveBeenCalledTimes(3);
     view.unmount();
+  });
+
+  it('does not judge a choice when an arrow key comes from the exit control', () => {
+    renderReviewWithChoices(['第一条']);
+    const exit = screen.getByRole('button', { name: '退出回顾' });
+    exit.focus();
+
+    fireEvent.keyDown(exit, { key: 'ArrowRight' });
+
+    expect(readChoiceStatus('第一条')).toBe('unjudged');
   });
 
   it('shows current totals without a score when every choice is judged', () => {

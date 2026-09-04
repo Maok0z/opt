@@ -26,14 +26,19 @@ export function ChoiceComposer({ onAdd }: ChoiceComposerProps) {
   };
 
   return (
-    <input
-      ref={inputRef}
-      aria-label="记录此刻的选择"
-      autoComplete="off"
-      enterKeyHint="done"
-      value={draft}
-      onChange={(event) => setDraft(event.target.value)}
-      onKeyDown={handleKeyDown}
-    />
+    <div className="choice-composer">
+      <input
+        ref={inputRef}
+        aria-label="记录此刻的选择"
+        name="choice"
+        autoComplete="off"
+        enterKeyHint="done"
+        placeholder="此刻，我选择了…"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={handleKeyDown}
+      />
+      <span aria-hidden="true">Enter</span>
+    </div>
   );
 }

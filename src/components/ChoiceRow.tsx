@@ -173,7 +173,7 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
   return (
     <article
       ref={rowRef}
-      className="choice-row--horizontal-decision"
+      className="choice-row choice-row--horizontal-decision"
       tabIndex={readOnly ? undefined : 0}
       data-decision={choice.status}
       data-drag-direction={decision.direction}
@@ -197,7 +197,9 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
         }
       }}
     >
-      <time dateTime={choice.occurredAt}>{formatChoiceTime(choice.occurredAt)}</time>
+      <time className="choice-row__time" dateTime={choice.occurredAt}>
+        {formatChoiceTime(choice.occurredAt)}
+      </time>
       {editing ? (
         <input
           aria-label="编辑选择"
@@ -208,9 +210,10 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
           onBlur={() => saveEdit(false)}
         />
       ) : (
-        <span>{choice.text}</span>
+        <span className="choice-row__text">{choice.text}</span>
       )}
       <button
+        className="choice-row__status"
         type="button"
         aria-label={`状态：${statusNames[choice.status]}`}
         disabled={readOnly}
@@ -219,7 +222,11 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
             judgeChoice(choice.id, 'unjudged');
           }
         }}
-      />
+      >
+        <span className="visually-hidden">
+          {`状态：${statusNames[choice.status]}`}
+        </span>
+      </button>
       {menuOpen ? (
         <div role="menu" onKeyDown={handleMenuKeyDown}>
           <button

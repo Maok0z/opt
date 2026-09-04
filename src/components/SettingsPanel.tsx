@@ -1,4 +1,10 @@
-import { useEffect, useState, type MouseEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent,
+} from 'react';
 import type { Settings } from '../domain/types';
 import { useOpt } from '../state/OptContext';
 
@@ -12,15 +18,34 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const { data, updateSettings } = useOpt();
   const [notificationState, setNotificationState] =
     useState<Settings['notificationPreference']>(readNotificationState);
+  const [notificationPending, setNotificationPending] = useState(false);
+  const [notificationError, setNotificationError] = useState<string | null>(
+    null,
+  );
+  const dialogRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const background = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '.opt-app > main, .opt-app > .review-reminder',
+      ),
+    );
+    for (const element of background) element.setAttribute('inert', '');
+    closeButtonRef.current?.focus();
+
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
       onClose();
     };
     window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+      for (const element of background) element.removeAttribute('inert');
+      previouslyFocused?.focus();
+    };
   }, [onClose]);
 
   const closeOutside = (event: MouseEvent<HTMLDivElement>) => {
@@ -34,9 +59,36 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     ) {
       return;
     }
-    const permission = await Notification.requestPermission();
-    setNotificationState(permission);
-    updateSettings({ notificationPreference: permission });
+    setNotificationError(null);
+    setNotificationPending(true);
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationState(permission);
+      updateSettings({ notificationPreference: permission });
+    } catch {
+      setNotificationError('未能开启浏览器通知，请重试');
+    } finally {
+      setNotificationPending(false);
+    }
+  };
+
+  const keepFocusInDialog = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(
+      dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   };
 
   return (
@@ -45,10 +97,16 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       onClick={closeOutside}
       style={{ position: 'fixed', inset: 0 }}
     >
-      <section role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        onKeyDown={keepFocusInDialog}
+      >
         <header>
           <h2 id="settings-title">设置</h2>
-          <button type="button" onClick={onClose}>
+          <button ref={closeButtonRef} type="button" onClick={onClose}>
             关闭设置
           </button>
         </header>
@@ -77,13 +135,17 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             })
           }
         >
-          回顾提醒
+          回顾提醒：{data.settings.reminderEnabled ? '开启' : '关闭'}
         </button>
 
-        <NotificationControl
-          state={notificationState}
-          onRequest={requestNotifications}
-        />
+        <div aria-live="polite">
+          <NotificationControl
+            state={notificationState}
+            pending={notificationPending}
+            error={notificationError}
+            onRequest={requestNotifications}
+          />
+        </div>
       </section>
     </div>
   );
@@ -91,18 +153,25 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
 function NotificationControl({
   state,
+  pending,
+  error,
   onRequest,
 }: {
   state: Settings['notificationPreference'];
+  pending: boolean;
+  error: string | null;
   onRequest(): void;
 }) {
   if (state === 'unsupported') return <p>此浏览器不支持通知</p>;
   if (state === 'denied') return <p>通知已被浏览器阻止</p>;
   if (state === 'granted') return <p>浏览器通知已开启</p>;
   return (
-    <button type="button" onClick={onRequest}>
-      开启浏览器通知
-    </button>
+    <>
+      {error ? <p role="status">{error}</p> : null}
+      <button type="button" disabled={pending} onClick={onRequest}>
+        {pending ? '正在开启浏览器通知' : '开启浏览器通知'}
+      </button>
+    </>
   );
 }
 

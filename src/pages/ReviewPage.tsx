@@ -80,6 +80,12 @@ export function ReviewPage({ onExit }: ReviewPageProps) {
         onExit();
         return;
       }
+      if (
+        event.target instanceof Element &&
+        event.target.closest('button, input, textarea, a, [role="button"]')
+      ) {
+        return;
+      }
       if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
         event.preventDefault();
         commit(event.key === 'ArrowRight' ? 'green' : 'red');
@@ -125,18 +131,11 @@ export function ReviewPage({ onExit }: ReviewPageProps) {
   };
 
   const progress = decision === 'neutral' ? horizontal.progress : 0;
+  const background = reviewBackground(decision, progress);
   const screenStyle = {
     '--decision-progress': progress,
-    backgroundColor: reviewBackground(decision, progress),
-    color: '#F4F4F1',
-    fontFamily:
-      '"Segoe UI Variable", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif',
-    minHeight: '100dvh',
-    width: '100%',
-    position: 'relative',
-    display: 'grid',
-    placeItems: 'center',
-    textAlign: 'center',
+    '--review-background': background,
+    '--review-foreground': readableReviewForeground(background),
   } as CSSProperties;
 
   return (
@@ -154,34 +153,16 @@ export function ReviewPage({ onExit }: ReviewPageProps) {
       onPointerCancel={handlePointerCancel}
     >
       <button
+        className="review-screen__exit"
         type="button"
         onClick={onExit}
-        style={{
-          position: 'absolute',
-          top: 24,
-          left: 24,
-          minHeight: 44,
-          color: 'inherit',
-          background: 'transparent',
-          border: '1px solid currentColor',
-        }}
       >
         退出回顾
       </button>
       <span
         role="status"
         aria-live="polite"
-        style={{
-          position: 'absolute',
-          width: 1,
-          height: 1,
-          padding: 0,
-          margin: -1,
-          overflow: 'hidden',
-          clip: 'rect(0, 0, 0, 0)',
-          whiteSpace: 'nowrap',
-          border: 0,
-        }}
+        className="visually-hidden"
       >
         {decision === 'green'
           ? '已判断：绿色'
@@ -190,7 +171,7 @@ export function ReviewPage({ onExit }: ReviewPageProps) {
             : ''}
       </span>
       {currentChoice === null ? (
-        <section aria-live="polite">
+        <section className="review-screen__choice" aria-live="polite">
           <h1>今天已回顾完</h1>
           <p>
             共 {stats.total} 条 · {stats.green} 绿 · {stats.red} 红 ·{' '}
@@ -198,22 +179,17 @@ export function ReviewPage({ onExit }: ReviewPageProps) {
           </p>
         </section>
       ) : (
-        <section aria-live="polite" aria-atomic="true">
-          <h1
-            style={{
-              maxWidth: '18em',
-              margin: 0,
-              fontSize: 'clamp(2.25rem, 8vw, 6rem)',
-              lineHeight: 1.15,
-              fontWeight: 600,
-            }}
-          >
+        <section
+          className="review-screen__choice"
+          role="region"
+          aria-label="当前选择"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <h1>
             {currentChoice.text}
           </h1>
-          <time
-            dateTime={currentChoice.occurredAt}
-            style={{ display: 'block', marginTop: 20, opacity: 0.72 }}
-          >
+          <time dateTime={currentChoice.occurredAt}>
             {formatChoiceTime(currentChoice.occurredAt)}
           </time>
         </section>
@@ -249,6 +225,33 @@ function mixHex(from: string, to: string, amount: number): string {
       .padStart(2, '0');
   });
   return `#${channels.join('')}`;
+}
+
+function readableReviewForeground(background: string): string {
+  const white = '#FFFFFF';
+  const black = '#000000';
+  return contrastRatio(background, black) >= contrastRatio(background, white)
+    ? black
+    : white;
+}
+
+function contrastRatio(left: string, right: string): number {
+  const leftLuminance = relativeLuminance(left);
+  const rightLuminance = relativeLuminance(right);
+  return (
+    (Math.max(leftLuminance, rightLuminance) + 0.05) /
+    (Math.min(leftLuminance, rightLuminance) + 0.05)
+  );
+}
+
+function relativeLuminance(color: string): number {
+  const [red, green, blue] = [1, 3, 5].map((offset) => {
+    const channel = Number.parseInt(color.slice(offset, offset + 2), 16) / 255;
+    return channel <= 0.04045
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
 function formatChoiceTime(timestamp: string): string {

@@ -22,6 +22,39 @@ afterEach(() => {
 });
 
 describe('App', () => {
+  it('exposes one page heading and a readable label for every choice status', () => {
+    renderApp(dataWithChoices([
+      choice('green', '一条绿色选择', '2026-09-04', 'green'),
+      choice('red', '一条红色选择', '2026-09-04', 'red'),
+      choice('unjudged', '一条未判断选择', '2026-09-04'),
+    ]));
+
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    for (const label of ['状态：绿色', '状态：红色', '状态：未判断']) {
+      expect(screen.getByRole('button', { name: label })).toHaveTextContent(label);
+    }
+  });
+
+  it('announces the current review choice as a polite live region', async () => {
+    renderApp(dataWithChoices([choice('today', '今天的选择', '2026-09-04')]));
+    await userEvent.click(screen.getByRole('button', { name: '开始回顾' }));
+
+    expect(screen.getByRole('region', { name: '当前选择' })).toHaveAttribute(
+      'aria-live',
+      'polite',
+    );
+  });
+
+  it('keeps historical status controls named while disabled', async () => {
+    renderApp(dataWithChoices([choice('past', '昨天的选择', '2026-09-03')]));
+    await userEvent.click(screen.getByRole('button', { name: '过往' }));
+    await userEvent.click(screen.getByRole('button', { name: /2026年9月3日/ }));
+
+    const status = screen.getByRole('button', { name: '状态：未判断' });
+    expect(status).toBeDisabled();
+    expect(status).toHaveAccessibleName('状态：未判断');
+  });
+
   it('starts on Today and navigates to Review and back with Escape', async () => {
     renderApp(dataWithChoices([choice('today', '今天的选择', '2026-09-04')]));
     expect(screen.getByRole('heading', { name: '今天' })).toBeInTheDocument();
@@ -55,12 +88,14 @@ describe('App', () => {
     renderApp();
     const composer = screen.getByRole('textbox', { name: '记录此刻的选择' });
     await userEvent.type(composer, '还没有按回车的选择');
-    await userEvent.click(screen.getByRole('button', { name: '设置' }));
+    const settingsButton = screen.getByRole('button', { name: '设置' });
+    await userEvent.click(settingsButton);
 
     expect(screen.getByRole('dialog', { name: '设置' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '今天' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: '关闭设置' }));
     expect(composer).toHaveValue('还没有按回车的选择');
+    expect(settingsButton).toHaveFocus();
   });
 
   it('shows a due reminder that can start Review or be dismissed for today', () => {
@@ -145,15 +180,20 @@ function dataWithChoices(choices: Choice[]): OptData {
   };
 }
 
-function choice(id: string, text: string, localDate: string): Choice {
+function choice(
+  id: string,
+  text: string,
+  localDate: string,
+  status: Choice['status'] = 'unjudged',
+): Choice {
   const occurredAt = `${localDate}T08:00:00.000Z`;
   return {
     id,
     text,
     occurredAt,
     localDate,
-    status: 'unjudged',
-    judgedAt: null,
+    status,
+    judgedAt: status === 'unjudged' ? null : occurredAt,
     createdAt: occurredAt,
     updatedAt: occurredAt,
   };

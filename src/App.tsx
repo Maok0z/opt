@@ -5,6 +5,7 @@ import { HistoryPage } from './pages/HistoryPage';
 import { ReviewPage } from './pages/ReviewPage';
 import { TodayPage } from './pages/TodayPage';
 import { useOpt } from './state/OptContext';
+import './styles.css';
 
 type Surface = 'today' | 'review' | 'history';
 
@@ -76,9 +77,9 @@ export function App() {
   }, [data.settings.notificationPreference, updateSettings]);
 
   return (
-    <div data-surface={surface}>
+    <div className="opt-app" data-surface={surface}>
       {surface === 'today' && reminder.due ? (
-        <aside role="status">
+        <aside className="review-reminder" role="status">
           <p>该回顾今天的选择了</p>
           <button type="button" onClick={openReview}>
             开始回顾
