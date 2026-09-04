@@ -90,7 +90,9 @@ function isOptData(value: unknown): value is OptData {
   if (!Array.isArray(value.choices) || !value.choices.every(isChoice)) {
     return false;
   }
-  if (!isRecord(value.days) || !Object.values(value.days).every(isDayRecord)) {
+  const ids = value.choices.map((choice) => choice.id);
+  if (new Set(ids).size !== ids.length) return false;
+  if (!isRecord(value.days) || !areDayRecordsValid(value.days)) {
     return false;
   }
   return isSettings(value.settings);
@@ -100,13 +102,14 @@ function isChoice(value: unknown): value is Choice {
   if (!isRecord(value)) return false;
   return (
     typeof value.id === 'string' &&
+    value.id.trim().length > 0 &&
     typeof value.text === 'string' &&
-    typeof value.occurredAt === 'string' &&
-    typeof value.localDate === 'string' &&
+    isTimestamp(value.occurredAt) &&
+    isLocalDateKey(value.localDate) &&
     isChoiceStatus(value.status) &&
-    (value.judgedAt === null || typeof value.judgedAt === 'string') &&
-    typeof value.createdAt === 'string' &&
-    typeof value.updatedAt === 'string'
+    (value.judgedAt === null || isTimestamp(value.judgedAt)) &&
+    isTimestamp(value.createdAt) &&
+    isTimestamp(value.updatedAt)
   );
 }
 
@@ -117,8 +120,15 @@ function isChoiceStatus(value: unknown): value is ChoiceStatus {
 function isDayRecord(value: unknown): value is DayRecord {
   return (
     isRecord(value) &&
-    typeof value.localDate === 'string' &&
+    isLocalDateKey(value.localDate) &&
     typeof value.note === 'string'
+  );
+}
+
+function areDayRecordsValid(days: Record<string, unknown>): boolean {
+  return Object.entries(days).every(
+    ([key, value]) =>
+      isLocalDateKey(key) && isDayRecord(value) && value.localDate === key,
   );
 }
 
@@ -126,14 +136,29 @@ function isSettings(value: unknown): value is Settings {
   if (!isRecord(value)) return false;
   return (
     typeof value.reviewTime === 'string' &&
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value.reviewTime) &&
     typeof value.reminderEnabled === 'boolean' &&
     (value.notificationPreference === 'default' ||
       value.notificationPreference === 'granted' ||
       value.notificationPreference === 'denied' ||
       value.notificationPreference === 'unsupported') &&
     typeof value.historyHintSeen === 'boolean' &&
-    typeof value.latestSeenDate === 'string'
+    isLocalDateKey(value.latestSeenDate)
   );
+}
+
+function isLocalDateKey(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function isTimestamp(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString() === value;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -34,6 +34,7 @@ class WriteFailingStorage extends MapStorage {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('OptProvider', () => {
@@ -184,6 +185,97 @@ describe('OptProvider', () => {
       JSON.parse(storage.getItem('opt:data') ?? '').settings.latestSeenDate,
     ).toBe('2026-09-05');
   });
+
+  it('persists the advanced editable date when a mutation happens before the midnight timer', async () => {
+    let current = new Date(2026, 8, 4, 23, 59);
+    const storage = new MapStorage();
+    const first = render(
+      <OptProvider storage={storage} now={() => current}>
+        <Probe />
+      </OptProvider>,
+    );
+
+    current = new Date(2026, 8, 5, 0, 1);
+    await userEvent.click(
+      screen.getByRole('button', { name: 'add-test-choice' }),
+    );
+    expect(
+      JSON.parse(storage.getItem('opt:data') ?? '').settings.latestSeenDate,
+    ).toBe('2026-09-05');
+
+    first.unmount();
+    current = new Date(2026, 8, 4, 12);
+    render(
+      <OptProvider storage={storage} now={() => current}>
+        <Probe />
+      </OptProvider>,
+    );
+    expect(screen.getByTestId('editable-date')).toHaveTextContent(
+      '2026-09-05',
+    );
+  });
+
+  it('starts with defaults and a save error when the localStorage getter throws', () => {
+    vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new Error('storage access denied');
+    });
+
+    expect(() =>
+      render(
+        <OptProvider now={() => new Date(2026, 8, 4, 8)}>
+          <Probe />
+        </OptProvider>,
+      ),
+    ).not.toThrow();
+    expect(screen.getByTestId('editable-date')).toHaveTextContent(
+      '2026-09-04',
+    );
+    expect(screen.getByTestId('save-error')).toHaveTextContent('true');
+  });
+
+  it('updates, judges, and deletes only one matching record defensively', async () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue(
+      '00000000-0000-4000-8000-000000000000',
+    );
+    render(
+      <OptProvider
+        storage={new MapStorage()}
+        now={() => new Date(2026, 8, 4, 8)}
+      >
+        <CollisionProbe />
+      </OptProvider>,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'add-first' }));
+    await userEvent.click(screen.getByRole('button', { name: 'add-second' }));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'update-collision' }),
+    );
+    expect(screen.getByTestId('collision-0')).toHaveTextContent(
+      'updated:unjudged',
+    );
+    expect(screen.getByTestId('collision-1')).toHaveTextContent(
+      'second:unjudged',
+    );
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'judge-collision' }),
+    );
+    expect(screen.getByTestId('collision-0')).toHaveTextContent(
+      'updated:green',
+    );
+    expect(screen.getByTestId('collision-1')).toHaveTextContent(
+      'second:unjudged',
+    );
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'delete-collision' }),
+    );
+    expect(screen.queryByTestId('collision-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('collision-0')).toHaveTextContent(
+      'second:unjudged',
+    );
+  });
 });
 
 function Probe() {
@@ -237,6 +329,38 @@ function Probe() {
       </button>
       <button onClick={opt.markHistoryHintSeen}>mark-hint</button>
       <button onClick={opt.resetCorruptData}>reset-corrupt-data</button>
+    </>
+  );
+}
+
+function CollisionProbe() {
+  const opt = useOpt();
+  const firstId = opt.data.choices[0]?.id;
+
+  return (
+    <>
+      {opt.data.choices.map((choice, index) => (
+        <div data-testid={`collision-${index}`} key={`${index}-${choice.id}`}>
+          {choice.text}:{choice.status}
+        </div>
+      ))}
+      <button onClick={() => opt.addChoice('first')}>add-first</button>
+      <button onClick={() => opt.addChoice('second')}>add-second</button>
+      <button
+        onClick={() =>
+          firstId && opt.updateChoiceText(firstId, 'updated')
+        }
+      >
+        update-collision
+      </button>
+      <button
+        onClick={() => firstId && opt.judgeChoice(firstId, 'green')}
+      >
+        judge-collision
+      </button>
+      <button onClick={() => firstId && opt.deleteChoice(firstId)}>
+        delete-collision
+      </button>
     </>
   );
 }

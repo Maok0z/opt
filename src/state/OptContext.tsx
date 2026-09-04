@@ -56,13 +56,24 @@ interface InitialState {
 
 const OptContext = createContext<OptContextValue | null>(null);
 let fallbackId = 0;
+const unavailableStorage: StorageLike = {
+  getItem() {
+    throw new Error('Storage unavailable');
+  },
+  setItem() {
+    throw new Error('Storage unavailable');
+  },
+  removeItem() {
+    throw new Error('Storage unavailable');
+  },
+};
 
 export function OptProvider({
   children,
   storage,
-  now = () => new Date(),
+  now = systemNow,
 }: OptProviderProps) {
-  const resolvedStorage = storage ?? window.localStorage;
+  const resolvedStorage = storage ?? getBrowserStorage();
   const initialRef = useRef<InitialState | null>(null);
   if (initialRef.current === null) {
     initialRef.current = initialize(resolvedStorage, now());
@@ -107,7 +118,10 @@ export function OptProvider({
       const next = transform(current, editable);
       if (next === null) return;
       setLastDeleted(deleted);
-      replaceAndPersist(next);
+      replaceAndPersist({
+        ...next,
+        settings: { ...next.settings, latestSeenDate: editable },
+      });
     },
     [now, replaceAndPersist],
   );
@@ -133,13 +147,14 @@ export function OptProvider({
       const normalized = text.trim();
       if (!normalized) return;
       mutate((current, editable) => {
-        const choice = current.choices.find((item) => item.id === id);
-        if (!choice || choice.localDate !== editable) return null;
+        const choiceIndex = current.choices.findIndex((item) => item.id === id);
+        const choice = current.choices[choiceIndex];
+        if (choiceIndex < 0 || choice.localDate !== editable) return null;
         const timestamp = now().toISOString();
         return {
           ...current,
-          choices: current.choices.map((item) =>
-            item.id === id
+          choices: current.choices.map((item, index) =>
+            index === choiceIndex
               ? { ...item, text: normalized, updatedAt: timestamp }
               : item,
           ),
@@ -152,12 +167,13 @@ export function OptProvider({
   const judgeChoice = useCallback(
     (id: string, status: ChoiceStatus) => {
       mutate((current, editable) => {
-        const choice = current.choices.find((item) => item.id === id);
-        if (!choice || choice.localDate !== editable) return null;
+        const choiceIndex = current.choices.findIndex((item) => item.id === id);
+        const choice = current.choices[choiceIndex];
+        if (choiceIndex < 0 || choice.localDate !== editable) return null;
         return {
           ...current,
-          choices: current.choices.map((item) =>
-            item.id === id ? setChoiceStatus(item, status, now()) : item,
+          choices: current.choices.map((item, index) =>
+            index === choiceIndex ? setChoiceStatus(item, status, now()) : item,
           ),
         };
       });
@@ -175,10 +191,14 @@ export function OptProvider({
       const choice = current.choices.find((item) => item.id === id);
       if (!choice || choice.localDate !== editable) return;
       mutate(
-        (latest) => ({
-          ...latest,
-          choices: latest.choices.filter((item) => item.id !== id),
-        }),
+        (latest) => {
+          const choiceIndex = latest.choices.findIndex((item) => item.id === id);
+          if (choiceIndex < 0) return null;
+          return {
+            ...latest,
+            choices: latest.choices.filter((_, index) => index !== choiceIndex),
+          };
+        },
         choice,
       );
     },
@@ -344,4 +364,16 @@ function createId(): string {
   }
   fallbackId += 1;
   return `choice-${Date.now()}-${fallbackId}`;
+}
+
+function systemNow(): Date {
+  return new Date();
+}
+
+function getBrowserStorage(): StorageLike {
+  try {
+    return window.localStorage;
+  } catch {
+    return unavailableStorage;
+  }
 }

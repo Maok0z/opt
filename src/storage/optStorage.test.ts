@@ -100,6 +100,97 @@ describe('opt storage', () => {
     expect(storage.getItem('opt:data')).toBe(raw);
   });
 
+  it.each([
+    [
+      'empty choice IDs',
+      { ...validData(), choices: [{ ...validChoice('choice-1'), id: '' }] },
+    ],
+    [
+      'duplicate choice IDs',
+      {
+        ...validData(),
+        choices: [validChoice('choice-1'), validChoice('choice-1')],
+      },
+    ],
+    [
+      'invalid choice local dates',
+      {
+        ...validData(),
+        choices: [{ ...validChoice('choice-1'), localDate: '2026-02-30' }],
+      },
+    ],
+    [
+      'invalid latest seen dates',
+      {
+        ...validData(),
+        settings: { ...validData().settings, latestSeenDate: '09/04/2026' },
+      },
+    ],
+    [
+      'invalid day keys',
+      {
+        ...validData(),
+        days: {
+          yesterday: { localDate: '2026-09-03', note: '' },
+        },
+      },
+    ],
+    [
+      'day keys that differ from their records',
+      {
+        ...validData(),
+        days: {
+          '2026-09-03': { localDate: '2026-09-02', note: '' },
+        },
+      },
+    ],
+    [
+      'invalid choice timestamps',
+      {
+        ...validData(),
+        choices: [{ ...validChoice('choice-1'), occurredAt: 'not-a-time' }],
+      },
+    ],
+    [
+      'invalid judged timestamps',
+      {
+        ...validData(),
+        choices: [{ ...validChoice('choice-1'), judgedAt: 'not-a-time' }],
+      },
+    ],
+    [
+      'invalid creation timestamps',
+      {
+        ...validData(),
+        choices: [{ ...validChoice('choice-1'), createdAt: 'not-a-time' }],
+      },
+    ],
+    [
+      'invalid update timestamps',
+      {
+        ...validData(),
+        choices: [{ ...validChoice('choice-1'), updatedAt: 'not-a-time' }],
+      },
+    ],
+    [
+      'invalid review times',
+      {
+        ...validData(),
+        settings: { ...validData().settings, reviewTime: '24:75' },
+      },
+    ],
+  ])('preserves semantically invalid data with %s', (_name, value) => {
+    const raw = JSON.stringify(value);
+    const storage = new MapStorage([['opt:data', raw]]);
+
+    expect(loadOptData(storage, new Date(2026, 8, 4))).toEqual({
+      ok: false,
+      reason: 'corrupt',
+      raw,
+    });
+    expect(storage.getItem('opt:data')).toBe(raw);
+  });
+
   it('reports unavailable when reading storage throws', () => {
     const storage: StorageLike = {
       getItem: () => {
@@ -143,5 +234,18 @@ function validData(): OptData {
       historyHintSeen: false,
       latestSeenDate: '2026-09-04',
     },
+  };
+}
+
+function validChoice(id: string): OptData['choices'][number] {
+  return {
+    id,
+    text: '一条选择',
+    occurredAt: '2026-09-04T00:05:00.000Z',
+    localDate: '2026-09-04',
+    status: 'unjudged',
+    judgedAt: null,
+    createdAt: '2026-09-04T00:05:00.000Z',
+    updatedAt: '2026-09-04T00:05:00.000Z',
   };
 }
