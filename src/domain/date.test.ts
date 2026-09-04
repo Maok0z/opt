@@ -10,4 +10,9 @@ describe('local date boundary', () => {
     expect(resolveEditableDate('2026-09-03', '2026-09-04')).toBe('2026-09-04');
     expect(isDateEditable('2026-09-03', '2026-09-04')).toBe(false);
   });
+
+  it('moves the editable date forward and recognizes the current day', () => {
+    expect(resolveEditableDate('2026-09-05', '2026-09-04')).toBe('2026-09-05');
+    expect(isDateEditable('2026-09-05', '2026-09-05')).toBe(true);
+  });
 });

@@ -7,7 +7,7 @@ import {
 } from './choices';
 
 describe('choice domain', () => {
-  const morning = new Date('2026-09-04T08:05:00+08:00');
+  const morning = new Date(2026, 8, 4, 8, 5);
 
   it('trims and creates an unjudged choice at the supplied time', () => {
     const choice = createChoice('  躺在床上玩手机  ', morning, 'choice-1');
@@ -32,7 +32,7 @@ describe('choice domain', () => {
     const green = setChoiceStatus(
       choice,
       'green',
-      new Date('2026-09-04T21:30:00+08:00'),
+      new Date(2026, 8, 4, 21, 30),
     );
 
     expect(green.status).toBe('green');
@@ -43,22 +43,23 @@ describe('choice domain', () => {
 
   it('returns only unjudged choices for the requested day in occurrence order', () => {
     const first = createChoice('第一条', morning, '1');
-    const second = setChoiceStatus(
-      createChoice('第二条', new Date('2026-09-04T09:00:00+08:00'), '2'),
+    const later = createChoice('稍晚一条', new Date(2026, 8, 4, 9), '2');
+    const judged = setChoiceStatus(
+      createChoice('已判断', new Date(2026, 8, 4, 10), '3'),
       'red',
       morning,
     );
     const otherDay = createChoice(
       '昨天',
-      new Date('2026-09-03T09:00:00+08:00'),
-      '3',
+      new Date(2026, 8, 3, 9),
+      '4',
     );
 
     expect(
-      getReviewQueue([second, otherDay, first], '2026-09-04').map(
+      getReviewQueue([later, judged, otherDay, first], '2026-09-04').map(
         ({ id }) => id,
       ),
-    ).toEqual(['1']);
+    ).toEqual(['1', '2']);
   });
 
   it('uses creation time to order choices with the same occurrence time', () => {
