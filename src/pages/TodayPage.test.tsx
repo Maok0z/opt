@@ -50,6 +50,16 @@ describe('TodayPage', () => {
     expect(input).toHaveFocus();
   });
 
+  it('marks the composer as active while its input is focused', () => {
+    renderToday();
+    const input = screen.getByRole('textbox', { name: '记录此刻的选择' });
+    const composer = input.closest('.choice-composer');
+
+    expect(composer).toHaveAttribute('data-active', 'true');
+    fireEvent.blur(input);
+    expect(composer).toHaveAttribute('data-active', 'false');
+  });
+
   it('keeps blank input and does not create a row', async () => {
     renderToday();
     const input = screen.getByRole('textbox', { name: '记录此刻的选择' });
@@ -246,11 +256,14 @@ describe('TodayPage', () => {
 
   it('starts with the daily note collapsed and autosaves it on blur', async () => {
     const storage = renderToday();
+    const noteSection = screen.getByRole('button', { name: '今日随记' }).closest('section');
+    expect(noteSection).toHaveAttribute('data-expanded', 'false');
     expect(
       screen.queryByRole('textbox', { name: '今日随记内容' }),
     ).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '今日随记' }));
+    expect(noteSection).toHaveAttribute('data-expanded', 'true');
     const note = screen.getByRole('textbox', { name: '今日随记内容' });
     await userEvent.type(note, '今天更留意起床后的选择');
     fireEvent.blur(note);

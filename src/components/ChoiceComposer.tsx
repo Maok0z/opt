@@ -6,6 +6,7 @@ interface ChoiceComposerProps {
 
 export function ChoiceComposer({ onAdd }: ChoiceComposerProps) {
   const [draft, setDraft] = useState('');
+  const [isActive, setIsActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -26,7 +27,7 @@ export function ChoiceComposer({ onAdd }: ChoiceComposerProps) {
   };
 
   return (
-    <div className="choice-composer">
+    <div className="choice-composer" data-active={isActive}>
       <input
         ref={inputRef}
         aria-label="记录此刻的选择"
@@ -36,6 +37,8 @@ export function ChoiceComposer({ onAdd }: ChoiceComposerProps) {
         placeholder="此刻，我选择了…"
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
+        onFocus={() => setIsActive(true)}
+        onBlur={() => setIsActive(false)}
         onKeyDown={handleKeyDown}
       />
       <span aria-hidden="true">Enter</span>

@@ -76,6 +76,20 @@ test('reviews unjudged choices full-screen and exits', async ({ page }) => {
   ).toBeVisible();
 });
 
+test('exits after the final review choice has been judged', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await recordChoice(page, '最后一条选择');
+
+  await page.getByRole('button', { name: '开始回顾' }).click();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('heading', { name: '今天已回顾完' })).toBeVisible();
+
+  await page.getByRole('button', { name: '退出回顾' }).click();
+  await expect(
+    page.getByRole('textbox', { name: '记录此刻的选择' }),
+  ).toBeVisible();
+});
+
 test('review honors reduced motion and exits with a downward gesture', async ({ page }, testInfo) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await recordChoice(page, '减弱动画第一条');

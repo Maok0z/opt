@@ -103,6 +103,7 @@ export function ReviewPage({ onExit }: ReviewPageProps) {
   );
 
   const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (isInteractiveTarget(event.target)) return;
     exitPointer.current = {
       id: event.pointerId,
       x: event.clientX,
@@ -112,6 +113,7 @@ export function ReviewPage({ onExit }: ReviewPageProps) {
   };
 
   const handlePointerUp = (event: PointerEvent<HTMLElement>) => {
+    if (isInteractiveTarget(event.target)) return;
     horizontal.bind.onPointerUp(event);
     const start = exitPointer.current;
     exitPointer.current = null;
@@ -195,6 +197,13 @@ export function ReviewPage({ onExit }: ReviewPageProps) {
         </section>
       )}
     </main>
+  );
+}
+
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest('button, input, textarea, a, [role="button"]') !== null
   );
 }
 

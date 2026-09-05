@@ -14,7 +14,7 @@ export function Timeline({ choices, readOnly = false }: TimelineProps) {
   );
 
   return (
-    <div>
+    <div className="choice-timeline">
       {orderedChoices.map((choice) => (
         <ChoiceRow key={choice.id} choice={choice} readOnly={readOnly} />
       ))}

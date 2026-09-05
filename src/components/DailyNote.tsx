@@ -15,7 +15,7 @@ export function DailyNote({ dateKey, note, onSave }: DailyNoteProps) {
   }, [dateKey, note]);
 
   return (
-    <section>
+    <section className="daily-note" data-expanded={expanded}>
       <button
         type="button"
         aria-expanded={expanded}
@@ -24,12 +24,14 @@ export function DailyNote({ dateKey, note, onSave }: DailyNoteProps) {
         今日随记
       </button>
       {expanded ? (
-        <textarea
-          aria-label="今日随记内容"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={() => onSave(draft)}
-        />
+        <div className="daily-note__content">
+          <textarea
+            aria-label="今日随记内容"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={() => onSave(draft)}
+          />
+        </div>
       ) : null}
     </section>
   );
