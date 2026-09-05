@@ -23,16 +23,17 @@ export function DailyNote({ dateKey, note, onSave }: DailyNoteProps) {
       >
         今日随记
       </button>
-      {expanded ? (
-        <div className="daily-note__content">
+      <div className="daily-note__content" aria-hidden={!expanded}>
+        <div>
           <textarea
             aria-label="今日随记内容"
+            tabIndex={expanded ? 0 : -1}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onBlur={() => onSave(draft)}
           />
         </div>
-      ) : null}
+      </div>
     </section>
   );
 }

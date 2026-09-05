@@ -108,7 +108,7 @@ describe('OptProvider', () => {
     expect(screen.getByTestId('corrupt-data')).toBeEmptyDOMElement();
   });
 
-  it('updates current data and restores the most recently deleted choice', async () => {
+  it('updates current data and permanently deletes the selected choice', async () => {
     const storage = seededStorageWithTodayChoice();
     render(
       <OptProvider
@@ -133,10 +133,6 @@ describe('OptProvider', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'delete-today' }));
     expect(screen.queryByTestId('today-choice')).not.toBeInTheDocument();
-    expect(screen.getByTestId('last-deleted')).toHaveTextContent('喝黑咖啡');
-    await userEvent.click(screen.getByRole('button', { name: 'undo-delete' }));
-    expect(screen.getByTestId('today-choice')).toHaveTextContent('喝黑咖啡');
-    expect(screen.getByTestId('last-deleted')).toBeEmptyDOMElement();
   });
 
   it('keeps a successful in-memory mutation visible when persistence fails', async () => {
@@ -315,7 +311,6 @@ function Probe() {
       <div data-testid="editable-date">{opt.editableDate}</div>
       <div data-testid="save-error">{String(opt.saveError)}</div>
       <div data-testid="corrupt-data">{opt.corruptData ?? ''}</div>
-      <div data-testid="last-deleted">{opt.lastDeleted?.text ?? ''}</div>
       <div data-testid="today-note">
         {opt.data.days['2026-09-04']?.note ?? ''}
       </div>
@@ -345,7 +340,6 @@ function Probe() {
         judge-yesterday
       </button>
       <button onClick={() => opt.deleteChoice('today')}>delete-today</button>
-      <button onClick={opt.undoDelete}>undo-delete</button>
       <button onClick={() => opt.setDailyNote('今天的随记')}>save-note</button>
       <button onClick={() => opt.updateSettings({ reviewTime: '20:45' })}>
         update-settings

@@ -38,16 +38,38 @@ afterEach(() => {
 });
 
 describe('TodayPage', () => {
-  it('focuses the one-line composer and adds trimmed text with Enter', async () => {
+  it('releases composer focus as soon as a choice is submitted', () => {
     renderToday();
     const input = screen.getByRole('textbox', { name: '记录此刻的选择' });
 
     expect(input).toHaveFocus();
-    await userEvent.type(input, '  躺在床上玩手机  {enter}');
+    fireEvent.change(input, { target: { value: '  躺在床上玩手机  ' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(screen.getByText('躺在床上玩手机')).toBeInTheDocument();
     expect(input).toHaveValue('');
-    expect(input).toHaveFocus();
+    expect(input).not.toHaveFocus();
+  });
+
+  it('uses an icon-only settings control with an accessible name', () => {
+    renderToday();
+
+    const settings = screen.getByRole('button', { name: '设置' });
+    expect(settings).not.toHaveTextContent('设置');
+    expect(settings.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('announces a freshly recorded choice while the composer confirms submission', () => {
+    vi.useFakeTimers();
+    renderToday();
+    const input = screen.getByRole('textbox', { name: '记录此刻的选择' });
+
+    fireEvent.change(input, { target: { value: '起床后先刷牙' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(screen.getByText('记录已完成')).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(520));
+    expect(screen.queryByText('记录已完成')).not.toBeInTheDocument();
   });
 
   it('marks the composer as active while its input is focused', () => {
@@ -98,7 +120,7 @@ describe('TodayPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('edits from the context menu and undoes deletion', async () => {
+  it('edits from the context menu and deletes without an undo action', async () => {
     renderToday({ data: dataWithStatuses(['unjudged'], ['喝生椰拿铁']) });
     fireEvent.contextMenu(screen.getByText('喝生椰拿铁'));
     await userEvent.click(screen.getByRole('menuitem', { name: '编辑' }));
@@ -110,8 +132,9 @@ describe('TodayPage', () => {
     fireEvent.contextMenu(screen.getByText('喝黑咖啡'));
     await userEvent.click(screen.getByRole('menuitem', { name: '删除' }));
     expect(screen.queryByText('喝黑咖啡')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: '撤销删除' }));
-    expect(screen.getByText('喝黑咖啡')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: '撤销删除' }),
+    ).not.toBeInTheDocument();
   });
 
   it('opens the edit menu after a stationary 600ms pointer hold', () => {
@@ -243,6 +266,44 @@ describe('TodayPage', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     fireEvent.click(status);
     expect(screen.getByRole('button', { name: '状态：绿色' })).toBeDisabled();
+  });
+
+  it('marks only a newly added timeline card for its entry transition', () => {
+    vi.useFakeTimers();
+    const initialChoices = dataWithChoices([
+      ['first', '先前的选择', '2026-09-04T01:00:00.000Z', 'unjudged'],
+    ]).choices;
+    const storage = new MapStorage();
+    const view = render(
+      <OptProvider storage={storage} now={() => NOW}>
+        <Timeline choices={initialChoices} />
+      </OptProvider>,
+    );
+
+    expect(screen.getByRole('article')).toHaveAttribute(
+      'data-entering',
+      'false',
+    );
+
+    const addedChoice = {
+      ...initialChoices[0],
+      id: 'second',
+      text: '刚记录的选择',
+      occurredAt: '2026-09-04T02:00:00.000Z',
+      createdAt: '2026-09-04T02:00:00.000Z',
+      updatedAt: '2026-09-04T02:00:00.000Z',
+    };
+    view.rerender(
+      <OptProvider storage={storage} now={() => NOW}>
+        <Timeline choices={[...initialChoices, addedChoice]} />
+      </OptProvider>,
+    );
+
+    const rows = screen.getAllByRole('article');
+    expect(rows[0]).toHaveAttribute('data-entering', 'false');
+    expect(rows[1]).toHaveAttribute('data-entering', 'true');
+    act(() => vi.advanceTimersByTime(280));
+    expect(rows[1]).toHaveAttribute('data-entering', 'false');
   });
 
   it('shows visual proportions and exact textual totals', () => {

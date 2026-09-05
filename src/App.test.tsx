@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Choice, OptData } from './domain/types';
@@ -93,7 +93,9 @@ describe('App', () => {
 
     expect(screen.getByRole('dialog', { name: '设置' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '今天' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: '关闭设置' }));
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole('button', { name: '关闭设置' }));
+    act(() => vi.advanceTimersByTime(180));
     expect(composer).toHaveValue('还没有按回车的选择');
     expect(settingsButton).toHaveFocus();
   });

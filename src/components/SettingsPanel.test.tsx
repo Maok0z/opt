@@ -20,19 +20,20 @@ afterEach(() => {
 });
 
 describe('SettingsPanel', () => {
-  it('changes review time and disables reminders immediately', async () => {
+  it('opens a separate time page, saves a time, and returns to settings', async () => {
     const storage = renderSettings();
-    expect(screen.getByRole('switch')).toHaveTextContent('回顾提醒：开启');
-    fireEvent.change(screen.getByLabelText('每日回顾时间'), {
-      target: { value: '20:45' },
-    });
-    await userEvent.click(screen.getByRole('switch', { name: /回顾提醒/ }));
+    await userEvent.click(
+      screen.getByRole('button', { name: '每日回顾时间：21:30' }),
+    );
+    expect(
+      screen.getByRole('heading', { name: '每日回顾时间' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '20 时' }));
+    await userEvent.click(screen.getByRole('button', { name: '45 分' }));
 
-    expect(readSettings(storage)).toMatchObject({
-      reviewTime: '20:45',
-      reminderEnabled: false,
-    });
-    expect(screen.getByRole('switch')).toHaveTextContent('回顾提醒：关闭');
+    expect(readSettings(storage).reviewTime).toBe('20:45');
+    expect(screen.getByRole('switch')).toHaveTextContent('回顾提醒：开启');
   });
 
   it('requests notification permission only after an explicit click', async () => {
@@ -117,25 +118,45 @@ describe('SettingsPanel', () => {
     expect(requestPermission).not.toHaveBeenCalled();
   });
 
-  it('closes from its button, Escape, and only the outside overlay', async () => {
+  it('closes from its button, Escape, and only the outside overlay', () => {
+    vi.useFakeTimers();
     const onClose = vi.fn();
     const first = renderSettings(undefined, onClose);
-    await userEvent.click(screen.getByRole('button', { name: '关闭设置' }));
+    fireEvent.click(screen.getByRole('button', { name: '关闭设置' }));
+    act(() => vi.advanceTimersByTime(180));
     expect(onClose).toHaveBeenCalledTimes(1);
     first.view.unmount();
 
     const secondClose = vi.fn();
     const second = renderSettings(undefined, secondClose);
     fireEvent.keyDown(window, { key: 'Escape' });
+    act(() => vi.advanceTimersByTime(180));
     expect(secondClose).toHaveBeenCalledTimes(1);
     second.view.unmount();
 
     const outsideClose = vi.fn();
     renderSettings(undefined, outsideClose);
-    await userEvent.click(screen.getByRole('dialog'));
+    fireEvent.click(screen.getByRole('dialog'));
     expect(outsideClose).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByTestId('settings-overlay'));
+    fireEvent.click(screen.getByTestId('settings-overlay'));
+    act(() => vi.advanceTimersByTime(180));
     expect(outsideClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the dialog mounted long enough to play its closing transition', () => {
+    vi.useFakeTimers();
+    const onClose = vi.fn();
+    renderSettings(undefined, onClose);
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭设置' }));
+
+    expect(screen.getByTestId('settings-overlay')).toHaveAttribute(
+      'data-closing',
+      'true',
+    );
+    expect(onClose).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(180));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });
 

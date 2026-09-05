@@ -158,8 +158,16 @@ export function ReviewPage({ onExit }: ReviewPageProps) {
         className="review-screen__exit"
         type="button"
         onClick={onExit}
+        aria-label="退出回顾"
       >
-        退出回顾
+        <svg
+          className="review-screen__exit-icon"
+          viewBox="0 0 16 16"
+          aria-hidden="true"
+        >
+          <path d="M9.75 3.25 5 8l4.75 4.75M5.5 8H13" />
+        </svg>
+        <span>退出</span>
       </button>
       <span
         role="status"

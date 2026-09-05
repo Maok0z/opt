@@ -14,6 +14,7 @@ import '../gestures/interaction.css';
 interface ChoiceRowProps {
   choice: Choice;
   readOnly?: boolean;
+  isEntering?: boolean;
 }
 
 const statusNames = {
@@ -28,7 +29,11 @@ interface HoldStart {
   y: number;
 }
 
-export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
+export function ChoiceRow({
+  choice,
+  readOnly = false,
+  isEntering = false,
+}: ChoiceRowProps) {
   const { updateChoiceText, judgeChoice, deleteChoice } = useOpt();
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -175,6 +180,7 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
       ref={rowRef}
       className="choice-row choice-row--horizontal-decision"
       tabIndex={readOnly ? undefined : 0}
+      data-entering={isEntering}
       data-decision={choice.status}
       data-drag-direction={decision.direction}
       style={{
@@ -228,7 +234,11 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
         </span>
       </button>
       {menuOpen ? (
-        <div role="menu" onKeyDown={handleMenuKeyDown}>
+        <div
+          className="choice-row__menu"
+          role="menu"
+          onKeyDown={handleMenuKeyDown}
+        >
           <button
             ref={editMenuItemRef}
             type="button"
@@ -242,6 +252,7 @@ export function ChoiceRow({ choice, readOnly = false }: ChoiceRowProps) {
             编辑
           </button>
           <button
+            className="choice-row__menu-delete"
             ref={deleteMenuItemRef}
             type="button"
             role="menuitem"

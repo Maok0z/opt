@@ -28,7 +28,6 @@ export interface OptActions {
   updateChoiceText(id: string, text: string): void;
   judgeChoice(id: string, status: ChoiceStatus): void;
   deleteChoice(id: string): void;
-  undoDelete(): void;
   setDailyNote(note: string): void;
   updateSettings(settings: SettingsUpdate): void;
   markHistoryHintSeen(): void;
@@ -50,7 +49,6 @@ export interface OptContextValue extends OptActions {
   editableDate: string;
   saveError: boolean;
   corruptData: string | null;
-  lastDeleted: Choice | null;
 }
 
 interface OptProviderProps extends PropsWithChildren {
@@ -94,7 +92,6 @@ export function OptProvider({
   const [corruptData, setCorruptData] = useState<string | null>(
     initialRef.current.corruptData,
   );
-  const [lastDeleted, setLastDeleted] = useState<Choice | null>(null);
   const dataRef = useRef(data);
   const corruptDataRef = useRef(corruptData);
   dataRef.current = data;
@@ -117,7 +114,6 @@ export function OptProvider({
   const mutate = useCallback(
     (
       transform: (current: OptData, editable: string) => OptData | null,
-      deleted: Choice | null = null,
     ) => {
       if (corruptDataRef.current !== null) return;
       const current = dataRef.current;
@@ -127,7 +123,6 @@ export function OptProvider({
       );
       const next = transform(current, editable);
       if (next === null) return;
-      setLastDeleted(deleted);
       replaceAndPersist({
         ...next,
         settings: { ...next.settings, latestSeenDate: editable },
@@ -193,47 +188,18 @@ export function OptProvider({
 
   const deleteChoice = useCallback(
     (id: string) => {
-      const current = dataRef.current;
-      const editable = resolveEditableDate(
-        toLocalDateKey(now()),
-        current.settings.latestSeenDate,
-      );
-      const choice = current.choices.find((item) => item.id === id);
-      if (!choice || choice.localDate !== editable) return;
-      mutate(
-        (latest) => {
-          const choiceIndex = latest.choices.findIndex((item) => item.id === id);
-          if (choiceIndex < 0) return null;
-          return {
-            ...latest,
-            choices: latest.choices.filter((_, index) => index !== choiceIndex),
-          };
-        },
-        choice,
-      );
+      mutate((current, editable) => {
+        const choiceIndex = current.choices.findIndex((item) => item.id === id);
+        const choice = current.choices[choiceIndex];
+        if (!choice || choice.localDate !== editable) return null;
+        return {
+          ...current,
+          choices: current.choices.filter((_, index) => index !== choiceIndex),
+        };
+      });
     },
-    [mutate, now],
+    [mutate],
   );
-
-  const undoDelete = useCallback(() => {
-    if (corruptDataRef.current !== null || lastDeleted === null) return;
-    const deleted = lastDeleted;
-    const current = dataRef.current;
-    const editable = resolveEditableDate(
-      toLocalDateKey(now()),
-      current.settings.latestSeenDate,
-    );
-    if (deleted.localDate !== editable) {
-      setLastDeleted(null);
-      return;
-    }
-    const next = {
-      ...current,
-      choices: [...current.choices, deleted],
-    };
-    setLastDeleted(null);
-    replaceAndPersist(next);
-  }, [lastDeleted, now, replaceAndPersist]);
 
   const setDailyNote = useCallback(
     (note: string) => {
@@ -278,7 +244,6 @@ export function OptProvider({
     corruptDataRef.current = null;
     setData(next);
     setCorruptData(null);
-    setLastDeleted(null);
     setSaveError(false);
   }, [now, resolvedStorage]);
 
@@ -295,7 +260,6 @@ export function OptProvider({
         ...current,
         settings: { ...current.settings, latestSeenDate },
       });
-      setLastDeleted(null);
     };
 
     checkDate();
@@ -313,12 +277,10 @@ export function OptProvider({
       editableDate,
       saveError,
       corruptData,
-      lastDeleted,
       addChoice,
       updateChoiceText,
       judgeChoice,
       deleteChoice,
-      undoDelete,
       setDailyNote,
       updateSettings,
       markHistoryHintSeen,
@@ -329,12 +291,10 @@ export function OptProvider({
       editableDate,
       saveError,
       corruptData,
-      lastDeleted,
       addChoice,
       updateChoiceText,
       judgeChoice,
       deleteChoice,
-      undoDelete,
       setDailyNote,
       updateSettings,
       markHistoryHintSeen,

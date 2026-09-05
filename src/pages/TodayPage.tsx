@@ -51,8 +51,15 @@ export function TodayPage({
     <main>
       <header>
         <span>opt.</span>
-        <button type="button" onClick={onOpenSettings}>
-          设置
+        <button
+          className="app-settings-trigger"
+          type="button"
+          onClick={onOpenSettings}
+          aria-label="设置"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9.62 3.1h4.76l.63 2.16c.49.2.96.47 1.39.8l2.13-.66 2.38 4.12-1.53 1.61c.05.29.08.58.08.87s-.03.58-.08.87l1.53 1.61-2.38 4.12-2.13-.66c-.43.33-.9.6-1.39.8l-.63 2.16H9.62l-.63-2.16a7.42 7.42 0 0 1-1.39-.8l-2.13.66-2.38-4.12 1.53-1.61A5.9 5.9 0 0 1 4.54 12c0-.29.03-.58.08-.87L3.09 9.52 5.47 5.4l2.13.66c.43-.33.9-.6 1.39-.8l.63-2.16ZM12 15.25a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Z" />
+          </svg>
         </button>
       </header>
       <div
@@ -89,11 +96,6 @@ export function TodayPage({
         note={note}
         onSave={opt.setDailyNote}
       />
-      {opt.lastDeleted ? (
-        <button type="button" onClick={opt.undoDelete}>
-          撤销删除
-        </button>
-      ) : null}
     </main>
   );
 }

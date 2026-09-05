@@ -133,7 +133,11 @@ export function HistoryPage({ onExit }: HistoryPageProps) {
               <div>
                 <Timeline choices={day.choices} readOnly />
                 {day.note.trim() ? (
-                  <section aria-label={`${formatHistoryDate(day.dateKey)}随记`}>
+                  <section
+                    className="history-day__note"
+                    aria-label={`${formatHistoryDate(day.dateKey)}随记`}
+                  >
+                    <span>随记</span>
                     <p>{day.note}</p>
                   </section>
                 ) : null}

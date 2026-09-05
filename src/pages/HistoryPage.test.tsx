@@ -26,6 +26,7 @@ describe('HistoryPage', () => {
     await userEvent.click(dayButtons[0]);
     expect(screen.getByText('昨天的选择')).toBeInTheDocument();
     expect(screen.getByText('昨天随手记下的内容')).toBeInTheDocument();
+    expect(screen.getByText('随记')).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: '编辑' })).not.toBeInTheDocument();
     const status = screen.getByRole('button', { name: '状态：未判断' });
     expect(status).toBeDisabled();
