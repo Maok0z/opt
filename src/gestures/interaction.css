@@ -1,0 +1,7 @@
+.choice-row--horizontal-decision {
+  touch-action: pan-y;
+}
+
+.review-screen--immersive {
+  touch-action: none;
+}
